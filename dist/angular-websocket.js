@@ -1,16 +1,16 @@
 (function (global, factory) {
   if (typeof define === "function" && define.amd) {
-    define(['module', 'exports', 'angular', 'ws'], factory);
+    define(['module', 'exports', 'angular'], factory);
   } else if (typeof exports !== "undefined") {
-    factory(module, exports, require('angular'), require('ws'));
+    factory(module, exports, require('angular'));
   } else {
     var mod = {
       exports: {}
     };
-    factory(mod, mod.exports, global.angular, global.ws);
+    factory(mod, mod.exports, global.angular);
     global.angularWebsocket = mod.exports;
   }
-})(this, function (module, exports, _angular, ws) {
+})(this, function (module, exports, _angular) {
   'use strict';
 
   Object.defineProperty(exports, "__esModule", {
@@ -25,23 +25,7 @@
     };
   }
 
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
-    return typeof obj;
-  } : function (obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
-  };
-
-  var Socket;
-
-  if (typeof window === 'undefined') {
-    try {
-
-      Socket = ws.Client || ws.client || ws;
-    } catch (e) {}
-  }
-
-  // Browser
-  Socket = Socket || window.WebSocket || window.MozWebSocket;
+  var Socket = window.WebSocket || window.MozWebSocket;
 
   var noop = _angular2.default.noop;
   var objectFreeze = Object.freeze ? Object.freeze : noop;
@@ -76,11 +60,13 @@
   function $WebSocketProvider($rootScope, $q, $timeout, $websocketBackend) {
 
     function $WebSocket(url, protocols, options) {
+      var wsOptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+
       if (!options && isObject(protocols) && !isArray(protocols)) {
         options = protocols;
         protocols = undefined;
       }
-
+      this.wsOptions = wsOptions;
       this.protocols = protocols;
       this.url = url || 'Missing URL';
       this.ssl = /(wss)/i.test(this.url);
@@ -149,7 +135,7 @@
 
     $WebSocket.prototype._connect = function _connect(force) {
       if (force || !this.socket || this.socket.readyState !== this._readyStateConstants.OPEN) {
-        this.socket = $websocketBackend.create(this.url, this.protocols);
+        this.socket = $websocketBackend.create(this.url, this.protocols, this.wsOptions);
         this.socket.onmessage = _angular2.default.bind(this, this._onMessageHandler);
         this.socket.onopen = _angular2.default.bind(this, this._onOpenHandler);
         this.socket.onerror = _angular2.default.bind(this, this._onErrorHandler);
@@ -386,11 +372,15 @@
 
   // $WebSocketBackendProvider.$inject = ['$log'];
   function $WebSocketBackendProvider($log) {
-    this.create = function create(url, protocols) {
+    this.create = function create(url, protocols, options) {
       var match = /wss?:\/\//.exec(url);
 
       if (!match) {
         throw new Error('Invalid url provided');
+      }
+
+      if (options) {
+        return new Socket(url, protocols, options);
       }
 
       if (protocols) {
